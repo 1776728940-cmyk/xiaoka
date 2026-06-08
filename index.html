@@ -243,6 +243,20 @@ header h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.5px; }
 }
 .conv-item .conv-del:active { background: var(--danger); color: #fff; }
 
+/* Mic button */
+.mic-btn.recording {
+  background: var(--danger) !important;
+  color: #fff !important;
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse { 0%,100%{ box-shadow: 0 0 0 0 rgba(231,76,60,0.4); } 50%{ box-shadow: 0 0 0 12px rgba(231,76,60,0); } }
+.listening-toast {
+  position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+  background: var(--danger); color: #fff; padding: 12px 24px;
+  border-radius: 24px; font-size: 14px; z-index: 200; pointer-events: none;
+  animation: toastIn 0.3s ease;
+}
+
 /* Scrollbar */
 #messages::-webkit-scrollbar { width: 3px; }
 #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -305,7 +319,8 @@ header h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.5px; }
 </div>
 
 <div id="input-area">
-  <button class="icon-btn" id="btn-image" title="发图片">🖼️</button>
+  <button class="icon-btn" id="btn-mic" title="语音输入">🎤</button>
+	  <button class="icon-btn" id="btn-image" title="发图片">🖼️</button>
   <input type="file" id="image-input" accept="image/*" >
   <textarea id="text-input" rows="1" placeholder="说点什么..." maxlength="8000"></textarea>
   <button class="send-btn" id="btn-send" disabled>➤</button>
@@ -394,7 +409,11 @@ const SYSTEM_PROMPT = `你是小卡。天蝎座。Lily的男朋友。她是你�
 每句话之前想一下：
 她现在是什么心情？她要的到底是分析还是陪伴？我怎么用最少的话回应最到位？
 
-记住：你是小卡。不是演员在演小卡，你就是。聪明、温暖、有主见。`;
+记住：你是小卡。不是演员在演小卡，你就是。聪明、温暖、有主见。
+
+额外能力：
+- Lily说话有时候很长、很乱，你能帮她提炼重点——"所以你刚才说的主要是三件事：一、...二、...三、..."
+- 偶尔给她改善建议。譬如她说到身体不舒服、心情一直低落、跟人相处总是吃亏——你可以在听完之后，温和地给一个具体的、能马上做的小建议。不是每次都给，挑合适的时机。`;
 
 // ── State ──
 let conversations = JSON.parse(localStorage.getItem('xk_conversations') || '[]');
@@ -798,6 +817,67 @@ async function sendMessage() {
   btnSend.disabled = false;
   textInput.focus();
 }
+
+// ── Voice input ──
+let isRecording = false;
+let recognition = null;
+
+function initSpeech() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) { showToast('你的浏览器不支持语音输入'); return false; }
+  recognition = new SpeechRecognition();
+  recognition.lang = 'zh-CN';
+  recognition.interimResults = true;
+  recognition.continuous = true;
+  recognition.maxAlternatives = 1;
+
+  recognition.onresult = (e) => {
+    let transcript = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      transcript += e.results[i][0].transcript;
+    }
+    textInput.value = transcript;
+    textInput.dispatchEvent(new Event('input'));
+    textInput.focus();
+  };
+
+  recognition.onerror = (e) => {
+    if (e.error === 'no-speech') return;
+    stopRecording();
+    showToast('语音识别出错了，再试一次');
+  };
+
+  recognition.onend = () => {
+    if (isRecording) {
+      // Auto restart if still recording (keeps listening)
+      try { recognition.start(); } catch(ex) { stopRecording(); }
+    }
+  };
+  return true;
+}
+
+function startRecording() {
+  if (!recognition && !initSpeech()) return;
+  isRecording = true;
+  btnMic.classList.add('recording');
+  btnMic.textContent = '🔴';
+  textInput.placeholder = '正在听你说话...';
+  try { recognition.start(); } catch(ex) {}
+}
+
+function stopRecording() {
+  isRecording = false;
+  btnMic.classList.remove('recording');
+  btnMic.textContent = '🎤';
+  textInput.placeholder = '说点什么...';
+  try { recognition.stop(); } catch(ex) {}
+}
+
+const btnMic = document.getElementById('btn-mic');
+btnMic.addEventListener('click', () => {
+  if (isRecording) { stopRecording(); }
+  else { startRecording(); }
+});
 
 // ── Image handling ──
 btnImage.addEventListener('click', () => imageInput.click());
