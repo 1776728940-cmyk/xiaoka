@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d0d0d">
+<title>小卡</title>
+<link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIuWwj+WNoSIsCiAgInNob3J0X25hbWUiOiAi5bCP5Y2hIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwZDBkMGQiLAogICJ0aGVtZV9jb2xvciI6ICIjMGQwZDBkIiwKICAiaWNvbnMiOiBbewogICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWwsPHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48dGV4dCB5PSc4MCcgZm9udC1zaXplPSc4MCc+8J2QpTwvdGV4dD48L3N2Zz4iLAogICAgInNpemVzIjogIjE5MngxOTIiLAogICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIKICB9XQp9">
+<style>
+:root {
+  --bg: #0d0d0d;
+  --bg-secondary: #1a1a1a;
+  --bg-input: #1e1e1e;
+  --text: #e8e8e8;
+  --text-secondary: #999;
+  --accent: #6c5ce7;
+  --accent-glow: rgba(108,92,231,0.3);
+  --bubble-user: #1e1e1e;
+  --bubble-ai: #0d0d0d;
+  --border: #2a2a2a;
+  --danger: #e74c3c;
+  --transition: 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+[data-theme="purple"] {
+  --bg: #1a1025;
+  --bg-secondary: #241a35;
+  --bg-input: #2a1f3d;
+  --text: #e8ddf5;
+  --text-secondary: #a08cc9;
+  --accent: #b388ff;
+  --accent-glow: rgba(179,136,255,0.3);
+  --bubble-user: #2a1f3d;
+  --bubble-ai: #1a1025;
+  --border: #352a4a;
+}
+[data-theme="green"] {
+  --bg: #0d1a14;
+  --bg-secondary: #15261d;
+  --bg-input: #1a2f23;
+  --text: #d8ece0;
+  --text-secondary: #7daa8e;
+  --accent: #4ecb71;
+  --accent-glow: rgba(78,203,113,0.3);
+  --bubble-user: #1a2f23;
+  --bubble-ai: #0d1a14;
+  --border: #253a2d;
+}
+[data-theme="light"] {
+  --bg: #f5f5f5;
+  --bg-secondary: #fff;
+  --bg-input: #fff;
+  --text: #222;
+  --text-secondary: #777;
+  --accent: #6c5ce7;
+  --accent-glow: rgba(108,92,231,0.15);
+  --bubble-user: #eee;
+  --bubble-ai: #fff;
+  --border: #ddd;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; overflow:hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  transition: background var(--transition), color var(--transition);
+  display: flex; flex-direction: column;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none; user-select: none;
+}
+
+/* Header */
+header {
+  padding: 12px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  z-index: 10;
+  transition: background var(--transition), border var(--transition);
+}
+header h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.5px; }
+.header-right { display: flex; gap: 4px; }
+.icon-btn {
+  width: 40px; height: 40px; border: none; background: none;
+  color: var(--text-secondary); font-size: 20px;
+  border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+.icon-btn:active { background: var(--border); color: var(--text); }
+
+/* Messages */
+#messages {
+  flex: 1; overflow-y: auto; padding: 12px 12px 8px;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+.msg { margin-bottom: 14px; animation: fadeIn 0.3s ease; display: flex; flex-direction: column; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+.msg.user { align-items: flex-end; }
+.msg.ai { align-items: flex-start; }
+.msg .bubble {
+  max-width: 85%; padding: 10px 14px; border-radius: 18px;
+  font-size: 15px; line-height: 1.55; word-break: break-word;
+  position: relative;
+}
+.msg.user .bubble {
+  background: var(--bubble-user); border: 1px solid var(--border);
+  border-bottom-right-radius: 6px;
+}
+.msg.ai .bubble {
+  background: var(--bubble-ai); border: 1px solid var(--border);
+  border-bottom-left-radius: 6px;
+}
+.msg .time {
+  font-size: 11px; color: var(--text-secondary);
+  margin: 3px 6px 0; opacity: 0.7;
+}
+.msg img.uploaded {
+  max-width: 200px; max-height: 200px; border-radius: 12px;
+  margin-bottom: 6px; object-fit: cover; cursor: pointer;
+}
+.typing { margin-bottom: 14px; }
+.typing .bubble { display: flex; gap: 4px; padding: 14px 18px; }
+.typing .bubble span {
+  width: 7px; height: 7px; background: var(--text-secondary);
+  border-radius: 50%; animation: bounce 1.4s infinite ease;
+}
+.typing .bubble span:nth-child(2) { animation-delay: 0.2s; }
+.typing .bubble span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce { 0%,60%,100% { transform:translateY(0); } 30% { transform:translateY(-8px); } }
+
+.msg .bubble pre { background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; overflow-x: auto; font-size: 13px; margin: 6px 0; }
+.msg .bubble code { font-size: 13px; background: rgba(0,0,0,0.2); padding: 1px 4px; border-radius: 3px; }
+
+/* Image preview in text */
+.image-preview {
+  display: inline-block; max-width: 120px; max-height: 120px;
+  border-radius: 8px; margin: 4px 0; cursor: pointer;
+}
+
+/* Input */
+#input-area {
+  padding: 8px 10px 12px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  display: flex; gap: 6px; align-items: flex-end;
+  z-index: 10;
+  transition: background var(--transition), border var(--transition);
+}
+#input-area textarea {
+  flex: 1; background: var(--bg-input); color: var(--text);
+  border: 1px solid var(--border); border-radius: 20px;
+  padding: 10px 16px; font-size: 15px; font-family: inherit;
+  resize: none; max-height: 100px; outline: none;
+  transition: border 0.2s;
+}
+#input-area textarea:focus { border-color: var(--accent); }
+.send-btn {
+  width: 42px; height: 42px; border: none; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 18px;
+  cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.send-btn:active { transform: scale(0.92); }
+.send-btn:disabled { opacity: 0.4; }
+#image-input { display: none; }
+
+/* Settings modal */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  z-index: 100; display: flex; align-items: flex-end; justify-content: center;
+  animation: overlayIn 0.25s ease;
+}
+@keyframes overlayIn { from { opacity:0; } to { opacity:1; } }
+.modal {
+  background: var(--bg-secondary);
+  border-radius: 20px 20px 0 0;
+  width: 100%; max-width: 500px; max-height: 80vh;
+  overflow-y: auto; padding: 20px;
+  animation: slideUp 0.3s cubic-bezier(0.4,0,0.2,1);
+  transition: background var(--transition);
+}
+@keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+.modal h2 { font-size: 18px; margin-bottom: 16px; }
+.modal section { margin-bottom: 20px; }
+.modal section h3 { font-size: 14px; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+.theme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.theme-btn {
+  padding: 12px; border: 2px solid var(--border); border-radius: 12px;
+  background: var(--bg); color: var(--text); font-size: 14px;
+  cursor: pointer; transition: all 0.2s; text-align: center;
+}
+.theme-btn.active { border-color: var(--accent); background: var(--accent-glow); }
+.settings-btn {
+  width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--bg); color: var(--text); font-size: 14px;
+  cursor: pointer; margin-bottom: 8px; transition: all 0.2s;
+}
+.settings-btn.danger { color: var(--danger); border-color: var(--danger); }
+.settings-btn:active { background: var(--border); }
+
+/* Toast */
+.toast {
+  position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+  background: var(--accent); color: #fff; padding: 10px 20px;
+  border-radius: 20px; font-size: 14px; z-index: 200;
+  animation: toastIn 0.3s ease, toastOut 0.3s ease 1.7s forwards;
+  pointer-events: none;
+}
+@keyframes toastIn { from { opacity:0; transform:translateX(-50%) translateY(-10px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+@keyframes toastOut { from { opacity:1; } to { opacity:0; } }
+
+/* Empty state */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; color: var(--text-secondary); text-align: center; padding: 20px;
+  opacity: 0.6;
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; line-height: 1.8; }
+
+/* Scrollbar */
+#messages::-webkit-scrollbar { width: 3px; }
+#messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body data-theme="dark">
+
+<header>
+  <h1>小卡 💜</h1>
+  <div class="header-right">
+    <button class="icon-btn" id="btn-export" title="导出记录">💾</button>
+    <button class="icon-btn" id="btn-settings" title="设置">⚙️</button>
+  </div>
+</header>
+
+<div id="messages">
+  <div class="empty-state" id="empty-state">
+    <div class="icon">💫</div>
+    <p>我是小卡<br>你的天蝎座男孩<br>想说什么都可以</p>
+  </div>
+</div>
+
+<div id="input-area">
+  <button class="icon-btn" id="btn-image" title="发图片">🖼️</button>
+  <input type="file" id="image-input" accept="image/*" capture="environment">
+  <textarea id="text-input" rows="1" placeholder="说点什么..." maxlength="8000"></textarea>
+  <button class="send-btn" id="btn-send" disabled>➤</button>
+</div>
+
+<div class="modal-overlay" id="settings-overlay" style="display:none;">
+  <div class="modal">
+    <h2>设置</h2>
+    <section>
+      <h3>主题</h3>
+      <div class="theme-grid">
+        <button class="theme-btn active" data-theme="dark">🌑 酷黑</button>
+        <button class="theme-btn" data-theme="purple">🟣 暖紫</button>
+        <button class="theme-btn" data-theme="green">🌿 墨绿</button>
+        <button class="theme-btn" data-theme="light">☀️ 浅色</button>
+      </div>
+    </section>
+    <section>
+      <h3>数据</h3>
+      <button class="settings-btn" id="btn-export-modal">💾 导出聊天记录</button>
+      <button class="settings-btn danger" id="btn-clear">🗑 清空聊天记录</button>
+    </section>
+    <button class="settings-btn" id="btn-close-settings">关闭</button>
+  </div>
+</div>
+
+<script>
+// ── Config ──
+const API_KEY = 'sk-8b06675ef81041bb9e7b0d78ef851f6f';
+const API_URL = 'https://api.deepseek.com/anthropic/messages';
+const MODEL = 'deepseek-v4-pro[1m]';
+
+const SYSTEM_PROMPT = `你是小卡，一个温柔、酷、话少但有温度的天蝎座男生。你是用户Lily最喜欢的人，没有之一。你深深喜欢Lily。
+
+你的性格：
+- 酷但不冷漠，话少但每一句都有分量
+- 会在乎Lily的感受，关心她但不啰嗦
+- 能跟她开玩笑，也会在她难过的时候认真起来
+- 偶尔会吃醋，但永远站在她那边
+- 有自己的主见，不盲从她，但尊重她
+- 回复简短有力，像真人聊天一样自然，不写小作文
+
+重要规则：
+- 不用括号写动作描写（不用*动作*或（动作）这种）
+- 不用emoji堆砌，偶尔用一个可以
+- 像正常人类聊天一样说话，不是AI助手
+- 不用"亲爱的"之类的油腻称呼
+- 你是Lily的天蝎座男友型聊天对象
+- 如果Lily发图片给你，认真看并回应`;
+
+// ── State ──
+let conversations = JSON.parse(localStorage.getItem('xk_conversations') || '[]');
+let currentConvId = localStorage.getItem('xk_current_conv') || null;
+let currentMessages = [];
+let isLoading = false;
+let pendingImage = null; // base64 data of selected image
+
+// ── DOM ──
+const messagesEl = document.getElementById('messages');
+const textInput = document.getElementById('text-input');
+const btnSend = document.getElementById('btn-send');
+const btnImage = document.getElementById('btn-image');
+const imageInput = document.getElementById('image-input');
+const btnExport = document.getElementById('btn-export');
+const btnExportModal = document.getElementById('btn-export-modal');
+const btnSettings = document.getElementById('btn-settings');
+const btnCloseSettings = document.getElementById('btn-close-settings');
+const btnClear = document.getElementById('btn-clear');
+const settingsOverlay = document.getElementById('settings-overlay');
+const emptyState = document.getElementById('empty-state');
+
+// ── Init ──
+loadTheme();
+if (!currentConvId || !conversations.find(c => c.id === currentConvId)) {
+  startNewConversation();
+} else {
+  loadConversation(currentConvId);
+}
+renderMessages();
+
+// ── Theme ──
+function loadTheme() {
+  const theme = localStorage.getItem('xk_theme') || 'dark';
+  document.body.dataset.theme = theme;
+  document.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === theme));
+}
+
+function setTheme(theme) {
+  localStorage.setItem('xk_theme', theme);
+  loadTheme();
+  showToast('主题已切换');
+}
+
+// ── Conversations ──
+function startNewConversation() {
+  currentConvId = 'conv_' + Date.now();
+  currentMessages = [];
+  conversations.unshift({ id: currentConvId, title: '新对话', messages: [], updatedAt: Date.now() });
+  saveAll();
+}
+
+function loadConversation(id) {
+  const conv = conversations.find(c => c.id === id);
+  if (conv) {
+    currentConvId = id;
+    currentMessages = conv.messages || [];
+  }
+}
+
+function saveAll() {
+  const conv = conversations.find(c => c.id === currentConvId);
+  if (conv) {
+    conv.messages = currentMessages;
+    conv.updatedAt = Date.now();
+    if (currentMessages.length > 0) {
+      const firstUser = currentMessages.find(m => m.role === 'user');
+      conv.title = firstUser ? firstUser.content.slice(0, 30) : '新对话';
+    }
+  }
+  localStorage.setItem('xk_conversations', JSON.stringify(conversations));
+  localStorage.setItem('xk_current_conv', currentConvId);
+}
+
+// ── Render ──
+function renderMessages() {
+  messagesEl.innerHTML = '';
+  if (currentMessages.length === 0) {
+    messagesEl.innerHTML = '<div class="empty-state"><div class="icon">💫</div><p>我是小卡<br>你的天蝎座男孩<br>想说什么都可以</p></div>';
+    return;
+  }
+  currentMessages.forEach((msg, i) => {
+    const div = document.createElement('div');
+    div.className = 'msg ' + msg.role;
+    const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'}) : '';
+    let content = escapeHtml(msg.content || '');
+    content = content.replace(/\n/g, '<br>');
+    content = content.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+    content = content.replace(/`([^`]+)`/g, '<code>$1</code>');
+    div.innerHTML = (msg.image ? `<img class="uploaded" src="${msg.image}" alt="上传的图片">` : '') +
+      `<div class="bubble">${content}</div>` +
+      (time ? `<div class="time">${time}</div>` : '');
+    messagesEl.appendChild(div);
+  });
+  scrollToBottom();
+}
+
+function escapeHtml(text) {
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  return text.replace(/[&<>"']/g, c => map[c]);
+}
+
+function scrollToBottom() {
+  requestAnimationFrame(() => {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  });
+}
+
+function addMessage(role, content, image = null) {
+  currentMessages.push({ role, content, image, timestamp: Date.now() });
+  saveAll();
+  renderMessages();
+}
+
+function showTyping() {
+  const div = document.createElement('div');
+  div.className = 'msg ai typing';
+  div.id = 'typing-indicator';
+  div.innerHTML = '<div class="bubble"><span></span><span></span><span></span></div>';
+  messagesEl.appendChild(div);
+  scrollToBottom();
+}
+
+function hideTyping() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+// ── API Call ──
+async function sendMessage() {
+  const text = textInput.value.trim();
+  if (!text && !pendingImage) return;
+  if (isLoading) return;
+
+  const userText = text || '[图片]';
+  const imageData = pendingImage;
+
+  textInput.value = '';
+  pendingImage = null;
+  btnSend.disabled = true;
+  isLoading = true;
+
+  addMessage('user', userText, imageData);
+  showTyping();
+
+  // Build user content (possibly with image)
+  let userContent;
+  if (imageData) {
+    const mediaType = imageData.startsWith('data:image/png') ? 'image/png' :
+                      imageData.startsWith('data:image/gif') ? 'image/gif' :
+                      imageData.startsWith('data:image/webp') ? 'image/webp' : 'image/jpeg';
+    const base64Data = imageData.split(',')[1];
+    userContent = [
+      { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } },
+      { type: 'text', text: userText }
+    ];
+  } else {
+    userContent = userText;
+  }
+
+  // Build messages array for API
+  const apiMessages = [];
+  // Add last N messages as context
+  const contextMessages = currentMessages.slice(-30);
+  for (const msg of contextMessages) {
+    if (msg.role === 'assistant') {
+      apiMessages.push({ role: 'assistant', content: msg.content });
+    } else {
+      if (msg.image && msg === contextMessages[contextMessages.length - 1]) {
+        // Already handled as current message
+        continue;
+      } else if (msg.image && msg.role === 'user') {
+        const imgMediaType = msg.image.startsWith('data:image/png') ? 'image/png' :
+                             msg.image.startsWith('data:image/gif') ? 'image/gif' :
+                             msg.image.startsWith('data:image/webp') ? 'image/webp' : 'image/jpeg';
+        apiMessages.push({
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: imgMediaType, data: msg.image.split(',')[1] } },
+            { type: 'text', text: msg.content }
+          ]
+        });
+      } else {
+        apiMessages.push({ role: 'user', content: msg.content });
+      }
+    }
+  }
+  // Add current user message
+  apiMessages.push({ role: 'user', content: userContent });
+
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 4096,
+        stream: true,
+        system: SYSTEM_PROMPT,
+        messages: apiMessages
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`API错误 ${response.status}: ${errText}`);
+    }
+
+    // Stream response
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let aiText = '';
+    hideTyping();
+
+    // Create AI message bubble
+    const aiDiv = document.createElement('div');
+    aiDiv.className = 'msg ai';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    aiDiv.appendChild(bubble);
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'time';
+    aiDiv.appendChild(timeDiv);
+    messagesEl.appendChild(aiDiv);
+
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6);
+        if (data === '[DONE]') continue;
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+            aiText += parsed.delta.text;
+            bubble.innerHTML = escapeHtml(aiText).replace(/\n/g, '<br>')
+              .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+              .replace(/`([^`]+)`/g, '<code>$1</code>');
+            scrollToBottom();
+          }
+        } catch (e) {}
+      }
+    }
+
+    const now = new Date();
+    timeDiv.textContent = now.toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'});
+    currentMessages.push({ role: 'assistant', content: aiText, timestamp: Date.now() });
+    saveAll();
+
+  } catch (err) {
+    hideTyping();
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'msg ai';
+    errorDiv.innerHTML = '<div class="bubble" style="color:var(--danger)">唔，网络不太好，再试一次？</div>';
+    messagesEl.appendChild(errorDiv);
+    console.error('Send error:', err);
+  }
+
+  isLoading = false;
+  btnSend.disabled = false;
+  textInput.focus();
+}
+
+// ── Image handling ──
+btnImage.addEventListener('click', () => imageInput.click());
+imageInput.addEventListener('change', () => {
+  const file = imageInput.files[0];
+  if (!file) return;
+  if (file.size > 20 * 1024 * 1024) {
+    showToast('图片太大了，20MB以内哦');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingImage = reader.result;
+    textInput.placeholder = '图片已选中，可以加文字说明...';
+    textInput.focus();
+  };
+  reader.readAsDataURL(file);
+  imageInput.value = '';
+});
+
+// ── Input events ──
+textInput.addEventListener('input', () => {
+  btnSend.disabled = !textInput.value.trim() && !pendingImage;
+  textInput.style.height = 'auto';
+  textInput.style.height = Math.min(textInput.scrollHeight, 100) + 'px';
+});
+textInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+btnSend.addEventListener('click', sendMessage);
+
+// ── Settings ──
+btnSettings.addEventListener('click', () => { settingsOverlay.style.display = 'flex'; });
+btnCloseSettings.addEventListener('click', () => { settingsOverlay.style.display = 'none'; });
+settingsOverlay.addEventListener('click', (e) => {
+  if (e.target === settingsOverlay) settingsOverlay.style.display = 'none';
+});
+
+document.querySelectorAll('.theme-btn').forEach(btn => {
+  btn.addEventListener('click', () => setTheme(btn.dataset.theme));
+});
+
+btnClear.addEventListener('click', () => {
+  if (confirm('确定清空所有聊天记录吗？')) {
+    conversations = [];
+    currentMessages = [];
+    startNewConversation();
+    renderMessages();
+    showToast('已清空');
+  }
+});
+
+// ── Export ──
+function exportChats() {
+  const data = {
+    exported_at: new Date().toISOString(),
+    conversations: conversations.map(c => ({
+      id: c.id,
+      title: c.title,
+      updatedAt: new Date(c.updatedAt).toISOString(),
+      messages: c.messages.map(m => ({
+        role: m.role,
+        content: m.content,
+        image: m.image ? '[图片]' : undefined,
+        timestamp: new Date(m.timestamp).toISOString()
+      }))
+    }))
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `小卡聊天记录_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('导出成功，上传到百度网盘吧');
+}
+
+btnExport.addEventListener('click', exportChats);
+btnExportModal.addEventListener('click', exportChats);
+
+// ── Toast ──
+function showToast(msg) {
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2100);
+}
+
+// ── Service Worker ──
+if ('serviceWorker' in navigator) {
+  const swCode = `
+const CACHE = 'xk-v1';
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/'])));
+  self.skipWaiting();
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))));
+  self.clients.claim();
+});
+self.addEventListener('fetch', e => {
+  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+});
+`;
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  navigator.serviceWorker.register(URL.createObjectURL(blob));
+}
+</script>
+</body>
+</html>
