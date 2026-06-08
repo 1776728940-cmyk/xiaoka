@@ -227,9 +227,46 @@ header h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.5px; }
 /* Scrollbar */
 #messages::-webkit-scrollbar { width: 3px; }
 #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Login */
+#login-overlay {
+  position: fixed; inset: 0; z-index: 999;
+  background: var(--bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+#login-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+#login-overlay .login-icon { font-size: 56px; margin-bottom: 20px; }
+#login-overlay h2 { font-size: 20px; margin-bottom: 6px; }
+#login-overlay .login-hint { font-size: 13px; color: var(--text-secondary); margin-bottom: 24px; }
+#login-overlay input {
+  width: 220px; padding: 12px 16px; font-size: 16px; text-align: center;
+  background: var(--bg-input); color: var(--text);
+  border: 1px solid var(--border); border-radius: 14px; outline: none;
+  letter-spacing: 4px; transition: border 0.2s;
+}
+#login-overlay input:focus { border-color: var(--accent); }
+#login-overlay .login-btn {
+  margin-top: 16px; padding: 12px 40px; border: none; border-radius: 24px;
+  background: var(--accent); color: #fff; font-size: 15px; cursor: pointer;
+  transition: transform 0.2s;
+}
+#login-overlay .login-btn:active { transform: scale(0.95); }
+#login-overlay .login-error { color: var(--danger); font-size: 13px; margin-top: 12px; min-height: 20px; }
+#login-overlay.shake { animation: shake 0.5s ease; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)} }
 </style>
 </head>
 <body data-theme="dark">
+
+<div id="login-overlay">
+  <div class="login-icon">🔐</div>
+  <h2 id="login-title">设置密码</h2>
+  <p class="login-hint" id="login-hint">第一次来，设一个只有你知道的密码</p>
+  <input type="password" id="login-input" placeholder="输入密码" maxlength="20" autocomplete="off">
+  <button class="login-btn" id="login-btn">进入</button>
+  <div class="login-error" id="login-error"></div>
+</div>
 
 <header>
   <h1>小卡 💜</h1>
@@ -264,6 +301,10 @@ header h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.5px; }
         <button class="theme-btn" data-theme="green">🌿 墨绿</button>
         <button class="theme-btn" data-theme="light">☀️ 浅色</button>
       </div>
+    </section>
+    <section>
+      <h3>安全</h3>
+      <button class="settings-btn" id="btn-change-pwd">🔑 修改密码</button>
     </section>
     <section>
       <h3>数据</h3>
@@ -316,11 +357,95 @@ const btnExportModal = document.getElementById('btn-export-modal');
 const btnSettings = document.getElementById('btn-settings');
 const btnCloseSettings = document.getElementById('btn-close-settings');
 const btnClear = document.getElementById('btn-clear');
+const btnChangePwd = document.getElementById('btn-change-pwd');
 const settingsOverlay = document.getElementById('settings-overlay');
 const emptyState = document.getElementById('empty-state');
+const loginOverlay = document.getElementById('login-overlay');
+const loginTitle = document.getElementById('login-title');
+const loginHint = document.getElementById('login-hint');
+const loginInput = document.getElementById('login-input');
+const loginBtn = document.getElementById('login-btn');
+const loginError = document.getElementById('login-error');
+
+// ── Password ──
+async function hashPwd(pwd) {
+  const data = new TextEncoder().encode('xk_salt_' + pwd);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function checkLogin() {
+  const stored = localStorage.getItem('xk_password');
+  if (!stored) {
+    // First time - set password
+    loginTitle.textContent = '设置密码';
+    loginHint.textContent = '第一次来，设一个只有你知道的密码';
+    loginError.textContent = '';
+    loginInput.value = '';
+    loginInput.placeholder = '设置密码';
+    loginBtn.textContent = '设好了';
+    loginOverlay.classList.remove('hidden');
+    return false;
+  }
+  // Has password - need to unlock
+  loginTitle.textContent = '小卡在等你';
+  loginHint.textContent = '输入密码才能进来';
+  loginError.textContent = '';
+  loginInput.value = '';
+  loginInput.placeholder = '输入密码';
+  loginBtn.textContent = '进入';
+  loginOverlay.classList.remove('hidden');
+  return false;
+}
+
+async function handleLogin() {
+  const pwd = loginInput.value.trim();
+  if (!pwd) { loginError.textContent = '密码不能为空'; return; }
+  if (pwd.length < 3) { loginError.textContent = '密码至少3位'; return; }
+
+  const stored = localStorage.getItem('xk_password');
+  if (!stored) {
+    // Setting new password
+    const hash = await hashPwd(pwd);
+    localStorage.setItem('xk_password', hash);
+    loginOverlay.classList.add('hidden');
+    loginInput.value = '';
+  } else {
+    // Checking password
+    const hash = await hashPwd(pwd);
+    if (hash === stored) {
+      loginOverlay.classList.add('hidden');
+      loginInput.value = '';
+      loginError.textContent = '';
+    } else {
+      loginError.textContent = '密码不对，再试一次';
+      loginOverlay.classList.add('shake');
+      setTimeout(() => loginOverlay.classList.remove('shake'), 500);
+      loginInput.value = '';
+    }
+  }
+}
+
+async function changePassword() {
+  const oldPwd = prompt('先输入旧密码：');
+  if (!oldPwd) return;
+  const stored = localStorage.getItem('xk_password');
+  const oldHash = await hashPwd(oldPwd);
+  if (oldHash !== stored) { showToast('旧密码不对'); return; }
+  const newPwd = prompt('输入新密码（至少3位）：');
+  if (!newPwd || newPwd.length < 3) { showToast('新密码至少3位'); return; }
+  const newHash = await hashPwd(newPwd);
+  localStorage.setItem('xk_password', newHash);
+  showToast('密码已修改');
+}
+
+loginBtn.addEventListener('click', handleLogin);
+loginInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleLogin(); });
+btnChangePwd.addEventListener('click', changePassword);
 
 // ── Init ──
 loadTheme();
+checkLogin();
 if (!currentConvId || !conversations.find(c => c.id === currentConvId)) {
   startNewConversation();
 } else {
